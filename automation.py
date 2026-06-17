@@ -23,14 +23,18 @@ logger = logging.getLogger(__name__)
 class AutomationOrchestrator:
     """Main orchestrator for the Devin automation system"""
     
-    def __init__(self):
+    def __init__(self, demo_mode=False):
         load_dotenv()
         
+        self.demo_mode = demo_mode
+        
         # Initialize clients
-        self.devin_client = DevinClient(
-            api_key=os.getenv("DEVIN_API_KEY"),
-            api_url=os.getenv("DEVIN_API_URL", "https://api.devin.ai")
-        )
+        if not demo_mode:
+            self.devin_client = DevinClient(
+                api_key=os.getenv("DEVIN_API_KEY"),
+                org_id=os.getenv("DEVIN_ORG_ID"),
+                api_url=os.getenv("DEVIN_API_URL", "https://api.devin.ai")
+            )
         
         self.github_client = GitHubClient(
             token=os.getenv("GITHUB_TOKEN"),
@@ -71,19 +75,34 @@ class AutomationOrchestrator:
                     # Create remediation plan
                     plan = self.issue_processor.create_remediation_plan(issue)
                     
-                    # Create Devin session
-                    session = self.devin_client.create_session(
-                        repo_url=self.repo_url,
-                        instructions=plan.instructions
-                    )
-                    
-                    logger.info(f"Created Devin session {session.session_id} for issue #{issue['number']}")
-                    
-                    # Wait for completion
-                    final_session = self.devin_client.wait_for_completion(
-                        session.session_id,
-                        timeout_seconds=1800
-                    )
+                    if self.demo_mode:
+                        # Mock Devin session for demo
+                        import time
+                        logger.info(f"[DEMO MODE] Simulating Devin session for issue #{issue['number']}")
+                        time.sleep(2)  # Simulate processing time
+                        
+                        session_id = f"demo-session-{issue['number']}"
+                        final_session = DevinSession(
+                            session_id=session_id,
+                            status="completed",
+                            created_at=datetime.utcnow().isoformat(),
+                            logs=["Analyzing issue...", "Making code changes...", "Running tests...", "Committing changes..."]
+                        )
+                        logger.info(f"[DEMO MODE] Completed mock session {session_id}")
+                    else:
+                        # Create real Devin session
+                        session = self.devin_client.create_session(
+                            repo_url=self.repo_url,
+                            prompt=plan.instructions
+                        )
+                        
+                        logger.info(f"Created Devin session {session.session_id} for issue #{issue['number']}")
+                        
+                        # Wait for completion
+                        final_session = self.devin_client.wait_for_completion(
+                            session.session_id,
+                            timeout_seconds=1800
+                        )
                     
                     # Record results
                     session_result = {
@@ -136,7 +155,15 @@ class AutomationOrchestrator:
 
 def main():
     """Main entry point"""
-    orchestrator = AutomationOrchestrator()
+    import sys
+    
+    # Check for demo mode flag
+    demo_mode = "--demo" in sys.argv or "-d" in sys.argv
+    
+    orchestrator = AutomationOrchestrator(demo_mode=demo_mode)
+    
+    if demo_mode:
+        logger.info("Running in DEMO MODE - Devin sessions will be mocked")
     
     # Run single iteration for demo
     logger.info("Running single iteration for demo")

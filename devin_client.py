@@ -4,6 +4,7 @@ Devin API client for managing autonomous coding sessions
 import requests
 from typing import Dict, Any
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass
@@ -22,10 +23,11 @@ class DevinSession:
 
 
 class DevinClient:
-    """Client for interacting with the Devin API"""
+    """Client for interacting with the Devin API v3"""
     
-    def __init__(self, api_key: str, api_url: str = "https://api.devin.ai"):
+    def __init__(self, api_key: str, org_id: str, api_url: str = "https://api.devin.ai"):
         self.api_key = api_key
+        self.org_id = org_id
         self.api_url = api_url
         self.headers = {
             "Authorization": f"Bearer {api_key}",
@@ -35,37 +37,36 @@ class DevinClient:
     def create_session(
         self, 
         repo_url: str, 
-        instructions: str,
+        prompt: str,
         branch: str = "main"
     ) -> DevinSession:
         """Create a new Devin coding session"""
-        endpoint = f"{self.api_url}/v1/sessions"
+        endpoint = f"{self.api_url}/v3/organizations/{self.org_id}/sessions"
         payload = {
+            "prompt": prompt,
             "repository": repo_url,
-            "instructions": instructions,
-            "branch": branch,
-            "auto_commit": True
+            "branch": branch
         }
         response = requests.post(endpoint, json=payload, headers=self.headers)
         response.raise_for_status()
         data = response.json()
         return DevinSession(
-            session_id=data["id"],
+            session_id=data["session_id"],
             status=data["status"],
-            created_at=data["created_at"],
-            logs=data.get("logs", [])
+            created_at=str(data["created_at"]),
+            logs=[]
         )
     
     def get_session(self, session_id: str) -> DevinSession:
         """Get the status of an existing session"""
-        endpoint = f"{self.api_url}/v1/sessions/{session_id}"
+        endpoint = f"{self.api_url}/v3/organizations/{self.org_id}/sessions/{session_id}"
         response = requests.get(endpoint, headers=self.headers)
         response.raise_for_status()
         data = response.json()
         return DevinSession(
-            session_id=data["id"],
+            session_id=data["session_id"],
             status=data["status"],
-            created_at=data["created_at"],
+            created_at=str(data["created_at"]),
             logs=data.get("logs", [])
         )
     
