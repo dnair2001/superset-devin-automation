@@ -90,13 +90,17 @@ class AutomationOrchestrator:
                         )
                         logger.info(f"[DEMO MODE] Completed mock session {session_id}")
                     else:
-                        # Create real Devin session
+                        # Create real Devin session with GitHub secret
+                        github_secret_id = os.getenv("DEVIN_GITHUB_SECRET_ID")
+                        secret_ids = [github_secret_id] if github_secret_id else None
+                        
                         session = self.devin_client.create_session(
                             repo_url=self.repo_url,
-                            prompt=plan.instructions
+                            prompt=plan.instructions,
+                            secret_ids=secret_ids
                         )
                         
-                        logger.info(f"Created Devin session {session.session_id} for issue #{issue['number']}")
+                        logger.info(f"Created Devin session {session.session_id} for issue #{issue['number']} with GitHub authentication")
                         
                         # Wait for completion
                         final_session = self.devin_client.wait_for_completion(

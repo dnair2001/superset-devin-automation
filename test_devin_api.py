@@ -1,5 +1,5 @@
 """
-Test script to debug Devin API authentication
+Test script to debug Devin API authentication and list secrets
 """
 import os
 import requests
@@ -16,42 +16,63 @@ print(f"API Key: {api_key[:10]}...{api_key[-10:] if api_key else 'None'}")
 print(f"Org ID: {org_id}")
 print(f"API URL: {api_url}")
 
-# Test v3 API
-print("\n=== Test v3 API ===")
-session_url = f"{api_url}/v3/organizations/{org_id}/sessions"
-payload = {
-    "prompt": "Test session",
-    "repos": ["https://github.com/dnair2001/superset-take-home.git"]
-}
-
+# List secrets using v3 API
+print("\n=== List Secrets (v3 API) ===")
+secrets_url = f"{api_url}/v3/organizations/{org_id}/secrets"
 headers = {
     "Authorization": f"Bearer {api_key}",
     "Content-Type": "application/json"
 }
 
 try:
-    response = requests.post(session_url, json=payload, headers=headers)
+    response = requests.get(secrets_url, headers=headers)
     print(f"Status Code: {response.status_code}")
     if response.status_code == 200:
         data = response.json()
-        print(f"✓ API Working!")
-        print(f"Session ID: {data.get('session_id')}")
-        print(f"Status: {data.get('status')}")
-        
-        # Test checking session status
-        session_id = data.get('session_id')
-        print(f"\n=== Testing session status check ===")
-        status_url = f"{api_url}/v3/organizations/{org_id}/sessions/{session_id}"
-        
-        for i in range(3):
-            time.sleep(2)
-            status_response = requests.get(status_url, headers=headers)
-            if status_response.status_code == 200:
-                status_data = status_response.json()
-                print(f"Check {i+1}: Status = {status_data.get('status')}")
-            else:
-                print(f"Check {i+1}: Error = {status_response.text}")
+        secrets = data.get('data', [])
+        print(f"✓ Found {len(secrets)} secrets:")
+        for secret in secrets:
+            print(f"  - Name: {secret.get('key')}")
+            print(f"    ID: {secret.get('secret_id')}")
+            print(f"    Type: {secret.get('secret_type')}")
+            print(f"    Created: {secret.get('created_at')}")
+            print()
     else:
-        print(f"✗ API Error: {response.text}")
+        print(f"✗ Error: {response.text}")
 except Exception as e:
     print(f"✗ Error: {str(e)}")
+
+# Create secret using v3 API with different name
+print("\n=== Create GitHub Token Secret (v3 API) ===")
+print("You need to create a GitHub Personal Access Token first:")
+print("1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)")
+print("2. Click 'Generate new token (classic)'")
+print("3. Name it 'Devin Automation'")
+print("4. Select 'repo' permissions")
+print("5. Generate and copy the token")
+print("\nThen paste your GitHub token here:")
+github_token = input("GitHub Token: ").strip()
+
+if github_token:
+    create_secret_url = f"{api_url}/v3/organizations/{org_id}/secrets"
+    payload = {
+        "type": "key-value",
+        "key": "GITHUB_TOKEN_AUTOMATION",
+        "value": github_token,
+        "is_sensitive": True,
+        "note": "GitHub token for pushing to repositories"
+    }
+    
+    try:
+        response = requests.post(create_secret_url, json=payload, headers=headers)
+        print(f"Status Code: {response.status_code}")
+        if response.status_code == 200:
+            data = response.json()
+            print(f"✓ Secret created successfully!")
+            print(f"Secret ID: {data.get('secret_id')}")
+            print(f"\nAdd this to your .env file:")
+            print(f"DEVIN_GITHUB_SECRET_ID={data.get('secret_id')}")
+        else:
+            print(f"✗ Error: {response.text}")
+    except Exception as e:
+        print(f"✗ Error: {str(e)}")

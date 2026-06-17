@@ -38,7 +38,8 @@ class DevinClient:
         self, 
         repo_url: str, 
         prompt: str,
-        branch: str = "main"
+        branch: str = "main",
+        secret_ids: list = None
     ) -> DevinSession:
         """Create a new Devin coding session"""
         endpoint = f"{self.api_url}/v3/organizations/{self.org_id}/sessions"
@@ -47,6 +48,9 @@ class DevinClient:
             "repos": [repo_url],
             "branch": branch
         }
+        if secret_ids:
+            payload["secret_ids"] = secret_ids
+        
         response = requests.post(endpoint, json=payload, headers=self.headers)
         response.raise_for_status()
         data = response.json()
