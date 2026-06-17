@@ -3,6 +3,7 @@ Test script to debug Devin API authentication
 """
 import os
 import requests
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,7 +21,7 @@ print("\n=== Test v3 API ===")
 session_url = f"{api_url}/v3/organizations/{org_id}/sessions"
 payload = {
     "prompt": "Test session",
-    "repository": "https://github.com/dnair2001/superset-take-home.git"
+    "repos": ["https://github.com/dnair2001/superset-take-home.git"]
 }
 
 headers = {
@@ -36,6 +37,20 @@ try:
         print(f"✓ API Working!")
         print(f"Session ID: {data.get('session_id')}")
         print(f"Status: {data.get('status')}")
+        
+        # Test checking session status
+        session_id = data.get('session_id')
+        print(f"\n=== Testing session status check ===")
+        status_url = f"{api_url}/v3/organizations/{org_id}/sessions/{session_id}"
+        
+        for i in range(3):
+            time.sleep(2)
+            status_response = requests.get(status_url, headers=headers)
+            if status_response.status_code == 200:
+                status_data = status_response.json()
+                print(f"Check {i+1}: Status = {status_data.get('status')}")
+            else:
+                print(f"Check {i+1}: Error = {status_response.text}")
     else:
         print(f"✗ API Error: {response.text}")
 except Exception as e:

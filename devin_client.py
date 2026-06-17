@@ -44,7 +44,7 @@ class DevinClient:
         endpoint = f"{self.api_url}/v3/organizations/{self.org_id}/sessions"
         payload = {
             "prompt": prompt,
-            "repository": repo_url,
+            "repos": [repo_url],
             "branch": branch
         }
         response = requests.post(endpoint, json=payload, headers=self.headers)
