@@ -22,12 +22,18 @@ class DevinSession:
     
     def is_complete(self) -> bool:
         # For v3 API, check status_detail for completion
-        # According to v3 docs, status can be "running" while status_detail is "finished"
-        return self.status_detail in ["finished", "failed", "cancelled"]
+        # "waiting_for_user" means PR is created and waiting for human review
+        # "finished" means task is complete
+        # "failed" or "cancelled" are terminal error states
+        return self.status_detail in ["waiting_for_user", "finished", "failed", "cancelled"]
     
     def is_successful(self) -> bool:
-        # For v3 API, success is determined by status_detail being "finished"
-        return self.status_detail == "finished"
+        # For v3 API, success is determined by status_detail being "waiting_for_user" (PR ready) or "finished"
+        return self.status_detail in ["waiting_for_user", "finished"]
+    
+    def is_waiting_for_user(self) -> bool:
+        # Check if session is waiting for user review (PR created)
+        return self.status_detail == "waiting_for_user"
 
 
 class DevinClient:

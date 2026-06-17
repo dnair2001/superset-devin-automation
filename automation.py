@@ -64,7 +64,7 @@ class AutomationOrchestrator:
                 final_session = DevinSession(
                     session_id=session_id,
                     status="running",
-                    status_detail="finished",  # Use status_detail for v3 API consistency
+                    status_detail="waiting_for_user",  # Use waiting_for_user for v3 API consistency
                     created_at=datetime.utcnow().isoformat(),
                     logs=["Analyzing issue...", "Making code changes...", "Running tests...", "Committing changes..."]
                 )
@@ -100,16 +100,25 @@ class AutomationOrchestrator:
             if final_session.is_successful():
                 logger.info(f"Successfully completed issue #{issue['number']}")
                 
-                # Add success comment
-                self.github_client.add_comment(
-                    issue_number=issue['number'],
-                    body=f"✅ Automatically remediated by Devin\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
-                )
-                
-                # Close the issue
-                self.github_client.close_issue(issue['number'])
-                
-                session_result["success"] = True
+                if final_session.is_waiting_for_user():
+                    # PR is created and waiting for human review - don't close issue
+                    self.github_client.add_comment(
+                        issue_number=issue['number'],
+                        body=f"🔄 PR is ready to remediate this issue. Waiting for human review on PR.\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
+                    )
+                    session_result["success"] = True
+                    session_result["waiting_for_review"] = True
+                else:
+                    # Task is fully complete - close the issue
+                    self.github_client.add_comment(
+                        issue_number=issue['number'],
+                        body=f"✅ Automatically remediated by Devin\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
+                    )
+                    
+                    # Close the issue
+                    self.github_client.close_issue(issue['number'])
+                    
+                    session_result["success"] = True
             else:
                 logger.error(f"Failed to complete issue #{issue['number']}: {final_session.status}")
                 
