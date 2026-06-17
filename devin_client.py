@@ -78,11 +78,18 @@ class DevinClient:
     ) -> DevinSession:
         """Wait for a session to complete"""
         import time
+        import logging
+        logger = logging.getLogger(__name__)
+        
         elapsed = 0
         while elapsed < timeout_seconds:
             session = self.get_session(session_id)
+            logger.info(f"Session {session_id} status: {session.status} (elapsed: {elapsed}s)")
+            
             if session.is_complete():
                 return session
+            
             time.sleep(poll_interval_seconds)
             elapsed += poll_interval_seconds
+        
         raise TimeoutError(f"Session {session_id} did not complete within {timeout_seconds} seconds")
