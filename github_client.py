@@ -18,12 +18,14 @@ class GitHubClient:
         }
     
     def get_open_issues(self) -> List[Dict[str, Any]]:
-        """Get all open issues from the repository"""
+        """Get all open issues from the repository (excluding pull requests)"""
         endpoint = f"{self.api_url}/issues"
         params = {"state": "open", "sort": "created", "direction": "asc"}
         response = requests.get(endpoint, headers=self.headers, params=params)
         response.raise_for_status()
-        return response.json()
+        # Filter out pull requests (GitHub API returns both issues and PRs)
+        issues = response.json()
+        return [issue for issue in issues if "pull_request" not in issue]
     
     def add_comment(self, issue_number: int, body: str) -> Dict[str, Any]:
         """Add a comment to an issue"""
