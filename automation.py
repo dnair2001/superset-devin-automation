@@ -84,7 +84,7 @@ class AutomationOrchestrator:
                 # Wait for completion
                 final_session = self.devin_client.wait_for_completion(
                     session.session_id,
-                    timeout_seconds=1800  # 30 minutes for real work
+                    timeout_seconds=1200  # 20 minutes for real work
                 )
             
             # Record results
