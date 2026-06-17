@@ -12,14 +12,22 @@ class DevinSession:
     """Represents a Devin autonomous coding session"""
     session_id: str
     status: str
-    created_at: str
-    logs: list[str]
+    status_detail: str = ""
+    created_at: str = ""
+    logs: list[str] = None
+    
+    def __post_init__(self):
+        if self.logs is None:
+            self.logs = []
     
     def is_complete(self) -> bool:
-        return self.status in ["completed", "failed", "cancelled"]
+        # For v3 API, check status_detail for completion
+        # According to v3 docs, status can be "running" while status_detail is "finished"
+        return self.status_detail in ["finished", "failed", "cancelled"]
     
     def is_successful(self) -> bool:
-        return self.status == "completed"
+        # For v3 API, success is determined by status_detail being "finished"
+        return self.status_detail == "finished"
 
 
 class DevinClient:
@@ -70,6 +78,7 @@ class DevinClient:
         return DevinSession(
             session_id=data["session_id"],
             status=data["status"],
+            status_detail=data.get("status_detail", ""),
             created_at=str(data["created_at"]),
             logs=data.get("logs", [])
         )
@@ -88,9 +97,10 @@ class DevinClient:
         elapsed = 0
         while elapsed < timeout_seconds:
             session = self.get_session(session_id)
-            logger.info(f"Session {session_id} status: {session.status} (elapsed: {elapsed}s)")
+            logger.info(f"Session {session_id} status: {session.status}, detail: {session.status_detail} (elapsed: {elapsed}s)")
             
             if session.is_complete():
+                logger.info(f"Session {session_id} detected as complete - status: {session.status}, detail: {session.status_detail}")
                 return session
             
             time.sleep(poll_interval_seconds)

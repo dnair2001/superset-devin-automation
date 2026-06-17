@@ -63,7 +63,8 @@ class AutomationOrchestrator:
                 session_id = f"demo-session-{issue['number']}"
                 final_session = DevinSession(
                     session_id=session_id,
-                    status="completed",
+                    status="running",
+                    status_detail="finished",  # Use status_detail for v3 API consistency
                     created_at=datetime.utcnow().isoformat(),
                     logs=["Analyzing issue...", "Making code changes...", "Running tests...", "Committing changes..."]
                 )
@@ -92,7 +93,7 @@ class AutomationOrchestrator:
                 "issue_number": issue['number'],
                 "issue_title": issue['title'],
                 "session_id": session.session_id,
-                "status": final_session.status,
+                "status": final_session.status_detail,  # Use status_detail for v3 API
                 "logs": final_session.logs[-5:]
             }
             
@@ -102,7 +103,7 @@ class AutomationOrchestrator:
                 # Add success comment
                 self.github_client.add_comment(
                     issue_number=issue['number'],
-                    body=f"✅ Automatically remediated by Devin\n\nSession: {session.session_id}\nStatus: {final_session.status}"
+                    body=f"✅ Automatically remediated by Devin\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
                 )
                 
                 # Close the issue
@@ -115,7 +116,7 @@ class AutomationOrchestrator:
                 # Add failure comment
                 self.github_client.add_comment(
                     issue_number=issue['number'],
-                    body=f"❌ Remediation failed\n\nSession: {session.session_id}\nStatus: {final_session.status}\n\nLogs:\n" + "\n".join(final_session.logs[-10:])
+                    body=f"❌ Remediation failed\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}\n\nLogs:\n" + "\n".join(final_session.logs[-10:])
                 )
                 
                 session_result["success"] = False
