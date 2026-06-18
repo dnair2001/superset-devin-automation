@@ -74,18 +74,17 @@ def handle_issues_event(payload):
     logger.info(f"Issue action: {action}, labels: {labels}")
     logger.info(f"Label changes: {label_changes}")
     
-    # Check if 'devin-remediate' label was added (only trigger on addition, not presence)
+    # Check if 'devin-remediate' label was added
     if action == 'labeled':
-        # Check the changes structure to see if devin-remediate was just added
-        added_labels = label_changes.get('added', [])
-        logger.info(f"Added labels from changes: {added_labels}")
-        
-        # Only trigger if devin-remediate was just added (not if it's already present)
-        if 'devin-remediate' in added_labels:
-            logger.info(f"devin-remediate label added to issue #{issue['number']}")
+        # GitHub sometimes doesn't send changes structure, so check current labels
+        # But prevent re-triggering if already being processed
+        if 'devin-remediate' in labels and 'devin-in-progress' not in labels:
+            logger.info(f"devin-remediate label found and issue not being processed, triggering automation for issue #{issue['number']}")
             return trigger_automation(issue)
+        elif 'devin-in-progress' in labels:
+            logger.info(f"Issue already being processed (has devin-in-progress label), skipping trigger")
         else:
-            logger.info(f"devin-remediate not in added labels, skipping trigger")
+            logger.info(f"devin-remediate not in labels, skipping trigger")
     
     return jsonify({'message': 'Label not triggered'}), 200
 
