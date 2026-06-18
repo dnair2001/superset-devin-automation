@@ -232,6 +232,33 @@ class AutomationOrchestrator:
         return results
 
 
+class Automation:
+    """Wrapper class for backward compatibility and webhook usage"""
+    
+    def __init__(self, github_token=None, github_repo=None, devin_api_key=None, devin_org_id=None, devin_github_secret_id=None, demo_mode=False, max_concurrent_sessions=3):
+        self.orchestrator = AutomationOrchestrator(
+            github_token=github_token,
+            github_repo=github_repo,
+            devin_api_key=devin_api_key,
+            devin_org_id=devin_org_id,
+            devin_github_secret_id=devin_github_secret_id,
+            demo_mode=demo_mode,
+            max_concurrent_sessions=max_concurrent_sessions
+        )
+    
+    @property
+    def github_client(self):
+        return self.orchestrator.github_client
+    
+    @property
+    def devin_client(self):
+        return self.orchestrator.devin_client
+    
+    def process_single_issue(self, issue: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a single issue - designed for webhook triggers"""
+        return self.orchestrator.process_single_issue(issue)
+
+
 def main():
     """Main entry point"""
     import sys
