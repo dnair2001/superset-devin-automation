@@ -84,12 +84,39 @@ cp .env.example .env
 - `GITHUB_TOKEN`: GitHub personal access token
 - `GITHUB_REPO`: Repository in format "owner/repo"
 - `DEVIN_GITHUB_SECRET_ID`: (Optional) Devin secret ID for GitHub authentication
+- `GITHUB_WEBHOOK_SECRET`: (Optional) Secret for webhook signature verification
+- `WEBHOOK_PORT`: Port for webhook server (default: 5000)
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `DEMO_MODE`: Set to "true" to run in demo mode without real Devin sessions
 
 ## Usage
 
-### Running the Automation
+### Webhook Mode (Event-Driven)
+
+The automation can be triggered by GitHub webhooks when issues are labeled:
+
+```bash
+python webhook_server.py
+```
+
+**Workflow:**
+1. Engineer adds `devin-remediate` label to an issue
+2. GitHub sends webhook event
+3. Webhook server receives event and triggers automation
+4. Automation adds `devin-in-progress` label
+5. Devin processes the issue
+6. Automation adds `devin-success` or `devin-failed` label
+7. PR-ready comment added if successful
+
+**Setup webhook:**
+1. Deploy webhook server (or use ngrok for local testing)
+2. Configure GitHub repository webhook:
+   - URL: `https://your-server.com/webhook`
+   - Content type: `application/json`
+   - Events: Issues (specifically label events)
+   - Secret: Set `GITHUB_WEBHOOK_SECRET` environment variable
+
+### Manual Mode
 
 ```bash
 python automation.py
@@ -140,6 +167,10 @@ The system provides observability through:
 - Summary statistics after each run
 - Detailed session logs for debugging
 - PR-ready comments when Devin creates pull requests for human review
+- Status labels for quick visual indication of automation state:
+  - `devin-in-progress`: Automation is processing the issue
+  - `devin-success`: Automation completed successfully
+  - `devin-failed`: Automation failed
 
 ## Session Completion Detection
 
@@ -215,13 +246,14 @@ This allows Devin to create pull requests without exposing your GitHub credentia
 
 To extend this system for production use:
 
-1. **Add webhook triggers**: Respond to GitHub events in real-time
+1. **Deploy webhook server**: Use cloud hosting (Heroku, AWS, etc.) for webhook server
 2. **Implement retry logic**: Handle transient failures gracefully
 3. **Add rate limiting**: Respect API rate limits
 4. **Expand issue types**: Support more complex refactoring tasks
 5. **Add metrics dashboard**: Track automation effectiveness over time
 6. **Multi-repo support**: Scale to manage multiple repositories
 7. **PR review automation**: Auto-merge PRs that pass CI checks
+8. **Label management UI**: Create GitHub Actions to manage labels automatically
 
 ## License
 

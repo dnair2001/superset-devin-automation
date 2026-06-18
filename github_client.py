@@ -42,3 +42,26 @@ class GitHubClient:
         response = requests.patch(endpoint, json=payload, headers=self.headers)
         response.raise_for_status()
         return response.json()
+    
+    def add_label(self, issue_number: int, label: str) -> Dict[str, Any]:
+        """Add a label to an issue"""
+        endpoint = f"{self.api_url}/issues/{issue_number}/labels"
+        payload = {"labels": [label]}
+        response = requests.post(endpoint, json=payload, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def remove_label(self, issue_number: int, label: str) -> Dict[str, Any]:
+        """Remove a label from an issue"""
+        endpoint = f"{self.api_url}/issues/{issue_number}/labels/{label}"
+        response = requests.delete(endpoint, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def set_labels(self, issue_number: int, labels: List[str]) -> Dict[str, Any]:
+        """Set the labels for an issue (replaces all existing labels)"""
+        endpoint = f"{self.api_url}/issues/{issue_number}"
+        payload = {"labels": labels}
+        response = requests.patch(endpoint, json=payload, headers=self.headers)
+        response.raise_for_status()
+        return response.json()

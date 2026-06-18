@@ -24,27 +24,28 @@ logger = logging.getLogger(__name__)
 class AutomationOrchestrator:
     """Main orchestrator for the Devin automation system"""
     
-    def __init__(self, demo_mode=False, max_concurrent_sessions=3):
+    def __init__(self, github_token=None, github_repo=None, devin_api_key=None, devin_org_id=None, devin_github_secret_id=None, demo_mode=False, max_concurrent_sessions=3):
         load_dotenv()
         
         self.demo_mode = demo_mode
         self.max_concurrent_sessions = max_concurrent_sessions
         
-        # Initialize clients
+        # Initialize clients with provided parameters or environment variables
         if not demo_mode:
             self.devin_client = DevinClient(
-                api_key=os.getenv("DEVIN_API_KEY"),
-                org_id=os.getenv("DEVIN_ORG_ID"),
+                api_key=devin_api_key or os.getenv("DEVIN_API_KEY"),
+                org_id=devin_org_id or os.getenv("DEVIN_ORG_ID"),
                 api_url=os.getenv("DEVIN_API_URL", "https://api.devin.ai")
             )
         
         self.github_client = GitHubClient(
-            token=os.getenv("GITHUB_TOKEN"),
-            repo=os.getenv("GITHUB_REPO")
+            token=github_token or os.getenv("GITHUB_TOKEN"),
+            repo=github_repo or os.getenv("GITHUB_REPO")
         )
         
         self.issue_processor = IssueProcessor()
-        self.repo_url = f"https://github.com/{os.getenv('GITHUB_REPO')}.git"
+        self.repo_url = f"https://github.com/{github_repo or os.getenv('GITHUB_REPO')}.git"
+        self.devin_github_secret_id = devin_github_secret_id or os.getenv("DEVIN_GITHUB_SECRET_ID")
     
     def process_single_issue(self, issue: Dict[str, Any]) -> Dict[str, Any]:
         """Process a single issue - designed for concurrent execution"""
@@ -71,8 +72,7 @@ class AutomationOrchestrator:
                 logger.info(f"[DEMO MODE] Completed mock session {session_id}")
             else:
                 # Create real Devin session with GitHub secret
-                github_secret_id = os.getenv("DEVIN_GITHUB_SECRET_ID")
-                secret_ids = [github_secret_id] if github_secret_id else None
+                secret_ids = [self.devin_github_secret_id] if self.devin_github_secret_id else None
                 
                 session = self.devin_client.create_session(
                     repo_url=self.repo_url,
@@ -100,12 +100,23 @@ class AutomationOrchestrator:
             if final_session.is_successful():
                 logger.info(f"Successfully completed issue #{issue['number']}")
                 
+                # Remove devin-in-progress label
+                try:
+                    self.github_client.remove_label(issue['number'], 'devin-in-progress')
+                except:
+                    pass  # Label may not exist
+                
                 if final_session.is_waiting_for_user():
                     # PR is created and waiting for human review - don't close issue
                     self.github_client.add_comment(
                         issue_number=issue['number'],
                         body=f"🔄 PR is ready to remediate this issue. Waiting for human review on PR.\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
                     )
+                    # Add devin-success label
+                    try:
+                        self.github_client.add_label(issue['number'], 'devin-success')
+                    except:
+                        pass
                     session_result["success"] = True
                     session_result["waiting_for_review"] = True
                 else:
@@ -115,6 +126,12 @@ class AutomationOrchestrator:
                         body=f"✅ Automatically remediated by Devin\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}"
                     )
                     
+                    # Add devin-success label
+                    try:
+                        self.github_client.add_label(issue['number'], 'devin-success')
+                    except:
+                        pass
+                    
                     # Close the issue
                     self.github_client.close_issue(issue['number'])
                     
@@ -122,11 +139,23 @@ class AutomationOrchestrator:
             else:
                 logger.error(f"Failed to complete issue #{issue['number']}: {final_session.status}")
                 
+                # Remove devin-in-progress label
+                try:
+                    self.github_client.remove_label(issue['number'], 'devin-in-progress')
+                except:
+                    pass  # Label may not exist
+                
                 # Add failure comment
                 self.github_client.add_comment(
                     issue_number=issue['number'],
                     body=f"❌ Remediation failed\n\nSession: {session.session_id}\nStatus: {final_session.status_detail}\n\nLogs:\n" + "\n".join(final_session.logs[-10:])
                 )
+                
+                # Add devin-failed label
+                try:
+                    self.github_client.add_label(issue['number'], 'devin-failed')
+                except:
+                    pass
                 
                 session_result["success"] = False
             
