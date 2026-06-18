@@ -87,6 +87,105 @@ def get_metrics():
         "avg_processing_time": f"{metrics.avg_processing_time:.1f}s"
     })
 
+@app.route('/dashboard', methods=['GET'])
+def dashboard():
+    """Return HTML dashboard with current metrics."""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Devin Automation Dashboard</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 50px auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .dashboard {{
+                background-color: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            h1 {{
+                color: #333;
+                border-bottom: 2px solid #007bff;
+                padding-bottom: 10px;
+            }}
+            .metrics-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin-top: 30px;
+            }}
+            .metric-card {{
+                background-color: #f8f9fa;
+                padding: 20px;
+                border-radius: 6px;
+                border-left: 4px solid #007bff;
+            }}
+            .metric-label {{
+                font-size: 14px;
+                color: #666;
+                margin-bottom: 8px;
+            }}
+            .metric-value {{
+                font-size: 32px;
+                font-weight: bold;
+                color: #333;
+            }}
+            .metric-value.success {{
+                color: #28a745;
+            }}
+            .metric-value.failure {{
+                color: #dc3545;
+            }}
+            .refresh-info {{
+                margin-top: 30px;
+                color: #666;
+                font-size: 14px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="dashboard">
+            <h1>🤖 Devin Automation Dashboard</h1>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Total Processed</div>
+                    <div class="metric-value">{metrics.total_processed}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Successful</div>
+                    <div class="metric-value success">{metrics.successful}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Failed</div>
+                    <div class="metric-value failure">{metrics.failed}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Success Rate</div>
+                    <div class="metric-value">{metrics.success_rate:.1f}%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Active Sessions</div>
+                    <div class="metric-value">{metrics.active_sessions}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Avg Processing Time</div>
+                    <div class="metric-value">{metrics.avg_processing_time:.1f}s</div>
+                </div>
+            </div>
+            <div class="refresh-info">
+                📊 Data updates automatically when automation runs. Refresh page to see latest metrics.
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
     """Handle GitHub webhook events."""
