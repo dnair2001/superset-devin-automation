@@ -9,6 +9,7 @@ import hmac
 import hashlib
 import json
 import logging
+import time
 from flask import Flask, request, jsonify
 from automation import Automation
 
@@ -19,6 +20,45 @@ app = Flask(__name__)
 
 # GitHub webhook secret for signature verification
 WEBHOOK_SECRET = os.getenv('GITHUB_WEBHOOK_SECRET', '')
+
+# Metrics tracking
+class Metrics:
+    def __init__(self):
+        self.total_processed = 0
+        self.successful = 0
+        self.failed = 0
+        self.active_sessions = 0
+        self.processing_times = []
+        self.start_time = time.time()
+    
+    def record_start(self):
+        self.active_sessions += 1
+    
+    def record_success(self, processing_time):
+        self.total_processed += 1
+        self.successful += 1
+        self.active_sessions -= 1
+        self.processing_times.append(processing_time)
+    
+    def record_failure(self, processing_time):
+        self.total_processed += 1
+        self.failed += 1
+        self.active_sessions -= 1
+        self.processing_times.append(processing_time)
+    
+    @property
+    def success_rate(self):
+        if self.total_processed == 0:
+            return 0.0
+        return (self.successful / self.total_processed) * 100
+    
+    @property
+    def avg_processing_time(self):
+        if not self.processing_times:
+            return 0
+        return sum(self.processing_times) / len(self.processing_times)
+
+metrics = Metrics()
 
 def verify_webhook_signature(payload, signature):
     """Verify GitHub webhook signature."""
@@ -34,6 +74,21 @@ def verify_webhook_signature(payload, signature):
     expected_signature = mac.hexdigest()
     
     return hmac.compare_digest(expected_signature, github_signature)
+
+@app.route('/metrics', methods=['GET'])
+def get_metrics():
+    """Return current automation metrics."""
+    uptime = time.time() - metrics.start_time
+    return jsonify({
+        "total_processed": metrics.total_processed,
+        "successful": metrics.successful,
+        "failed": metrics.failed,
+        "success_rate": f"{metrics.success_rate:.1f}%",
+        "active_sessions": metrics.active_sessions,
+        "avg_processing_time": f"{metrics.avg_processing_time:.1f}s",
+        "uptime_seconds": f"{uptime:.0f}",
+        "uptime_formatted": f"{uptime/3600:.1f} hours"
+    })
 
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
@@ -94,6 +149,9 @@ def handle_issues_event(payload):
 
 def trigger_automation(issue):
     """Trigger automation for the labeled issue."""
+    start_time = time.time()
+    metrics.record_start()
+    
     try:
         # Initialize automation
         automation = Automation(
@@ -114,11 +172,19 @@ def trigger_automation(issue):
         # Process the single issue
         result = automation.process_single_issue(issue)
         
+        processing_time = time.time() - start_time
+        if result.get('success'):
+            metrics.record_success(processing_time)
+        else:
+            metrics.record_failure(processing_time)
+        
         logger.info(f"Automation completed for issue #{issue['number']}: {result}")
         
         return jsonify({'message': 'Automation triggered', 'result': result}), 200
         
     except Exception as e:
+        processing_time = time.time() - start_time
+        metrics.record_failure(processing_time)
         logger.error(f"Failed to trigger automation: {e}")
         return jsonify({'error': str(e)}), 500
 
