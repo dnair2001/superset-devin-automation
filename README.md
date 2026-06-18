@@ -78,11 +78,14 @@ cp .env.example .env
 
 ### Environment Variables
 
-- `DEVIN_API_KEY`: Your Devin API key
+- `DEVIN_API_KEY`: Your Devin API v3 key
+- `DEVIN_ORG_ID`: Your Devin organization ID
 - `DEVIN_API_URL`: Devin API URL (default: https://api.devin.ai)
 - `GITHUB_TOKEN`: GitHub personal access token
 - `GITHUB_REPO`: Repository in format "owner/repo"
+- `DEVIN_GITHUB_SECRET_ID`: (Optional) Devin secret ID for GitHub authentication
 - `LOG_LEVEL`: Logging level (default: INFO)
+- `DEMO_MODE`: Set to "true" to run in demo mode without real Devin sessions
 
 ## Usage
 
@@ -95,8 +98,24 @@ python automation.py
 This will:
 1. Fetch open issues from the GitHub repository
 2. Process each issue with Devin
-3. Update GitHub with results
-4. Print a summary of the run
+3. Wait for sessions to complete (using v3 API status_detail field)
+4. Add PR-ready comments when Devin creates a PR and waits for human review
+5. Update GitHub with results
+6. Print a summary of the run
+
+### Demo Mode
+
+For testing or demonstration purposes, you can run in demo mode without making real Devin API calls:
+
+```bash
+python automation.py --demo
+```
+
+Or set the environment variable:
+```bash
+export DEMO_MODE=true
+python automation.py
+```
 
 ### Running with Docker
 
@@ -116,10 +135,22 @@ The automation currently handles:
 ## Observability
 
 The system provides observability through:
-- Console logging with timestamps
-- GitHub comments on each issue with session status
+- Console logging with timestamps and session status details
+- GitHub comments on each issue with session status and status_detail
 - Summary statistics after each run
 - Detailed session logs for debugging
+- PR-ready comments when Devin creates pull requests for human review
+
+## Session Completion Detection
+
+The automation uses the Devin API v3 `status_detail` field to detect when sessions are complete. This is necessary because in v3 API, the `status` field can remain "running" even when the task is complete. The automation treats the following `status_detail` values as completion states:
+
+- `waiting_for_user`: Devin has created a PR and is waiting for human review (adds PR-ready comment, does not close issue)
+- `finished`: Task is fully complete (closes issue)
+- `failed`: Task failed (adds failure comment with logs)
+- `cancelled`: Task was cancelled (adds failure comment)
+
+This approach prevents timeout errors and ensures accurate detection of session completion.
 
 ## Example Output
 
@@ -128,15 +159,23 @@ The system provides observability through:
 AUTOMATION SUMMARY
 ==================================================
 Issues Processed: 3
-Successful: 2
+Successful: 3
 Failed: 0
-Skipped: 1
+Skipped: 0
 
 Session Details:
-  Issue #1: completed
-  Issue #3: completed
-  Issue #4: completed
+  Issue #3: waiting_for_user
+  Issue #4: waiting_for_user
+  Issue #5: waiting_for_user
 ==================================================
+```
+
+When sessions reach `waiting_for_user` status, the automation adds a PR-ready comment:
+```
+🔄 PR is ready to remediate this issue. Waiting for human review on PR.
+
+Session: 2a72c7df0d724bec93b7a7bca42d4b6e
+Status: waiting_for_user
 ```
 
 ## Why Devin
@@ -149,6 +188,29 @@ Traditional automation tools (Dependabot, Renovate) can only handle simple, rule
 - **Test execution**: Runs tests and fixes failures automatically
 - **Natural language instructions**: Describe what you want, not how to do it
 
+## Technical Details
+
+### Devin API v3 Integration
+
+The automation uses the Devin API v3 endpoints:
+- `POST /v3/organizations/{org_id}/sessions` - Create new sessions
+- `GET /v3/organizations/{org_id}/sessions/{session_id}` - Get session status
+
+Key differences from v1/v2:
+- Requires organization ID in the URL path
+- Uses `prompt` field for instructions instead of `instructions`
+- Uses `repos` array instead of `repository` string
+- Session completion is determined by `status_detail` field, not `status`
+
+### GitHub Authentication
+
+The automation supports GitHub authentication through Devin secrets:
+1. Create a secret in Devin with your GitHub token
+2. Pass the secret ID via `DEVIN_GITHUB_SECRET_ID` environment variable
+3. Devin uses this secret to push changes to your repository
+
+This allows Devin to create pull requests without exposing your GitHub credentials in the automation code.
+
 ## Next Steps
 
 To extend this system for production use:
@@ -159,6 +221,7 @@ To extend this system for production use:
 4. **Expand issue types**: Support more complex refactoring tasks
 5. **Add metrics dashboard**: Track automation effectiveness over time
 6. **Multi-repo support**: Scale to manage multiple repositories
+7. **PR review automation**: Auto-merge PRs that pass CI checks
 
 ## License
 
