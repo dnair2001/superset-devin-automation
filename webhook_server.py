@@ -78,16 +78,13 @@ def verify_webhook_signature(payload, signature):
 @app.route('/metrics', methods=['GET'])
 def get_metrics():
     """Return current automation metrics."""
-    uptime = time.time() - metrics.start_time
     return jsonify({
         "total_processed": metrics.total_processed,
         "successful": metrics.successful,
         "failed": metrics.failed,
         "success_rate": f"{metrics.success_rate:.1f}%",
         "active_sessions": metrics.active_sessions,
-        "avg_processing_time": f"{metrics.avg_processing_time:.1f}s",
-        "uptime_seconds": f"{uptime:.0f}",
-        "uptime_formatted": f"{uptime/3600:.1f} hours"
+        "avg_processing_time": f"{metrics.avg_processing_time:.1f}s"
     })
 
 @app.route('/webhook', methods=['POST'])
