@@ -77,12 +77,16 @@ def handle_issues_event(payload):
     # Check if 'devin-remediate' label was added
     if action == 'labeled':
         # GitHub sometimes doesn't send changes structure, so check current labels
-        # But prevent re-triggering if already being processed
-        if 'devin-remediate' in labels and 'devin-in-progress' not in labels:
-            logger.info(f"devin-remediate label found and issue not being processed, triggering automation for issue #{issue['number']}")
+        # But prevent re-triggering if already being processed or completed
+        if 'devin-remediate' in labels and 'devin-in-progress' not in labels and 'devin-success' not in labels and 'devin-failed' not in labels:
+            logger.info(f"devin-remediate label found and issue not being processed or completed, triggering automation for issue #{issue['number']}")
             return trigger_automation(issue)
         elif 'devin-in-progress' in labels:
             logger.info(f"Issue already being processed (has devin-in-progress label), skipping trigger")
+        elif 'devin-success' in labels:
+            logger.info(f"Issue already completed successfully (has devin-success label), skipping trigger")
+        elif 'devin-failed' in labels:
+            logger.info(f"Issue already failed (has devin-failed label), skipping trigger")
         else:
             logger.info(f"devin-remediate not in labels, skipping trigger")
     
