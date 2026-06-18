@@ -72,10 +72,18 @@ def handle_issues_event(payload):
     label_changes = changes.get('labels', {})
     
     logger.info(f"Issue action: {action}, labels: {labels}")
+    logger.info(f"Label changes: {label_changes}")
     
     # Check if 'devin-remediate' label was added
     if action == 'labeled':
+        # Check both the current labels and the changes
+        if 'devin-remediate' in labels:
+            logger.info(f"devin-remediate label found in current labels for issue #{issue['number']}")
+            return trigger_automation(issue)
+        
+        # Also check the changes structure
         added_labels = label_changes.get('added', [])
+        logger.info(f"Added labels from changes: {added_labels}")
         if 'devin-remediate' in added_labels:
             logger.info(f"devin-remediate label added to issue #{issue['number']}")
             return trigger_automation(issue)
