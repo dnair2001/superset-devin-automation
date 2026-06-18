@@ -29,6 +29,18 @@ This automation reduces toil and allows engineers to focus on higher-value work.
          │
          ▼
 ┌─────────────────┐
+│  GitHub Webhook │
+│     Event       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Webhook Server │
+│  (Flask)        │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
 │  Automation     │
 │  Orchestrator   │
 └────────┬────────┘
@@ -37,14 +49,15 @@ This automation reduces toil and allows engineers to focus on higher-value work.
          │                 │
          ▼                 ▼
 ┌─────────────┐   ┌──────────────┐
-│  Issue      │   │  Devin       │
-│  Processor  │   │  Client      │
+│  GitHub     │   │  Devin       │
+│  Client     │   │  Client      │
 └─────────────┘   └──────────────┘
          │                 │
          └────────┬────────┘
                   ▼
          ┌────────────────┐
-         │  GitHub Client │
+         │  Label Mgmt &   │
+         │  Observability │
          └────────────────┘
 ```
 
@@ -91,9 +104,9 @@ cp .env.example .env
 
 ## Usage
 
-### Webhook Mode (Event-Driven)
+### Webhook Mode (Event-Driven) - Recommended
 
-The automation can be triggered by GitHub webhooks when issues are labeled:
+The automation is designed to be event-driven, triggered by GitHub webhooks when issues are labeled:
 
 ```bash
 python webhook_server.py
@@ -101,12 +114,18 @@ python webhook_server.py
 
 **Workflow:**
 1. Engineer adds `devin-remediate` label to an issue
-2. GitHub sends webhook event
-3. Webhook server receives event and triggers automation
+2. GitHub sends webhook event to webhook server
+3. Webhook server verifies signature and triggers automation
 4. Automation adds `devin-in-progress` label
 5. Devin processes the issue
 6. Automation adds `devin-success` or `devin-failed` label
 7. PR-ready comment added if successful
+
+**Webhook Features:**
+- Signature verification for security
+- Label-based state machine to prevent duplicate processing
+- Protection against webhook loops
+- Handles GitHub webhooks that don't send label changes structure
 
 **Setup webhook:**
 1. Deploy webhook server (or use ngrok for local testing)
@@ -116,7 +135,20 @@ python webhook_server.py
    - Events: Issues (specifically label events)
    - Secret: Set `GITHUB_WEBHOOK_SECRET` environment variable
 
+**Local testing with ngrok:**
+```bash
+# Start webhook server
+WEBHOOK_PORT=5001 python webhook_server.py
+
+# In another terminal, start ngrok
+ngrok http 5001
+
+# Use the ngrok URL for GitHub webhook configuration
+```
+
 ### Manual Mode
+
+For manual execution without webhooks:
 
 ```bash
 python automation.py
@@ -161,16 +193,50 @@ The automation currently handles:
 
 ## Observability
 
-The system provides observability through:
-- Console logging with timestamps and session status details
-- GitHub comments on each issue with session status and status_detail
-- Summary statistics after each run
-- Detailed session logs for debugging
-- PR-ready comments when Devin creates pull requests for human review
-- Status labels for quick visual indication of automation state:
+The system provides comprehensive observability through multiple channels:
+
+### Metrics Dashboard
+
+**HTML Dashboard:**
+- Access at `http://localhost:5001/dashboard` (or via ngrok)
+- Visual display of key metrics in a clean, user-friendly interface
+- Real-time updates when page is refreshed
+- Color-coded success/failure indicators
+
+**JSON Metrics API:**
+- Access at `http://localhost:5001/metrics`
+- Programmatic access to metrics for monitoring tools
+- Returns JSON with current automation statistics
+
+**Metrics tracked:**
+- Total processed issues
+- Successful vs failed counts
+- Success rate percentage
+- Active sessions
+- Average processing time
+
+### GitHub Integration
+
+- **Status labels** for quick visual indication:
   - `devin-in-progress`: Automation is processing the issue
   - `devin-success`: Automation completed successfully
   - `devin-failed`: Automation failed
+- **GitHub comments** on each issue with session status and status_detail
+- **PR-ready comments** when Devin creates pull requests for human review
+
+### Logging
+
+- Console logging with timestamps and session status details
+- Detailed session logs for debugging
+- Summary statistics after each run
+
+### Label-Based State Machine
+
+The automation uses a label-based state machine to prevent duplicate processing:
+- Only triggers when `devin-remediate` is added to an issue
+- Skips if issue already has `devin-in-progress` (already processing)
+- Skips if issue already has `devin-success` or `devin-failed` (already completed)
+- Prevents webhook loops and duplicate Devin sessions
 
 ## Session Completion Detection
 
@@ -250,10 +316,12 @@ To extend this system for production use:
 2. **Implement retry logic**: Handle transient failures gracefully
 3. **Add rate limiting**: Respect API rate limits
 4. **Expand issue types**: Support more complex refactoring tasks
-5. **Add metrics dashboard**: Track automation effectiveness over time
-6. **Multi-repo support**: Scale to manage multiple repositories
-7. **PR review automation**: Auto-merge PRs that pass CI checks
-8. **Label management UI**: Create GitHub Actions to manage labels automatically
+5. **Multi-repo support**: Scale to manage multiple repositories
+6. **PR review automation**: Auto-merge PRs that pass CI checks
+7. **Label management UI**: Create GitHub Actions to manage labels automatically
+8. **Advanced metrics**: Historical trends, performance analytics, alerting
+9. **SLA monitoring**: Alert on long-running sessions or high failure rates
+10. **Security scanning integration**: Trigger on security tool findings
 
 ## License
 
