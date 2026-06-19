@@ -133,7 +133,7 @@ python webhook_server.py
    - URL: `https://your-server.com/webhook`
    - Content type: `application/json`
    - Events: Issues (specifically label events)
-   - Secret: Set `GITHUB_WEBHOOK_SECRET` environment variable
+   - Secret: (OPTIONAL) Set `GITHUB_WEBHOOK_SECRET` environment variable
 
 **Local testing with ngrok:**
 ```bash
@@ -203,7 +203,7 @@ To test the GitHub webhook integration locally:
    ngrok http 5001
    ```
 
-3. **Configure GitHub webhook** in your repository settings:
+3. **Configure GitHub webhook** in your repository settings under "Webhook":
    - URL: Use the ngrok URL (e.g., `https://your-ngrok-url.ngrok-free.dev/webhook`)
    - Content type: `application/json`
    - Events: Issues (specifically label events)
