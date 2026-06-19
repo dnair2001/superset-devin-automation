@@ -10,5 +10,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
+ENV WEBHOOK_PORT=5001
 
-CMD ["python", "automation.py"]
+EXPOSE 5001
+
+CMD ["python", "webhook_server.py"]

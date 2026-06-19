@@ -178,9 +178,27 @@ python automation.py
 
 ### Running with Docker
 
+**Webhook Mode (Recommended):**
 ```bash
+# Build the Docker image
 docker build -t superset-devin-automation .
-docker run --env-file .env superset-devin-automation
+
+# Run the webhook server
+docker run --env-file .env -p 5001:5001 superset-devin-automation
+```
+
+The webhook server will be available at `http://localhost:5001` with endpoints:
+- `/webhook` - GitHub webhook endpoint
+- `/metrics` - JSON metrics API
+- `/dashboard` - HTML metrics dashboard
+
+**Manual Mode:**
+```bash
+# Build the Docker image
+docker build -t superset-devin-automation .
+
+# Run manual automation
+docker run --env-file .env superset-devin-automation python automation.py
 ```
 
 ## Issues Supported
