@@ -192,6 +192,38 @@ The webhook server will be available at `http://localhost:5001` with endpoints:
 - `/metrics` - JSON metrics API
 - `/dashboard` - HTML metrics dashboard
 
+**Testing the Webhook with Docker:**
+
+To test the GitHub webhook integration locally:
+
+1. **Start the Docker container** (as shown above)
+
+2. **Set up ngrok** to expose the container to GitHub:
+   ```bash
+   ngrok http 5001
+   ```
+
+3. **Configure GitHub webhook** in your repository settings:
+   - URL: Use the ngrok URL (e.g., `https://your-ngrok-url.ngrok-free.dev/webhook`)
+   - Content type: `application/json`
+   - Events: Issues (specifically label events)
+   - Secret: (Optional) Set `GITHUB_WEBHOOK_SECRET` in your `.env` file for signature verification
+
+4. **Test the automation** by adding the `devin-remediate` label to any issue in your GitHub repository
+
+5. **Monitor the logs** in the Docker container to see the webhook events and automation execution
+
+**Alternative: Demo Mode (No API Keys Required)**
+```bash
+# Build the Docker image
+docker build -t superset-devin-automation .
+
+# Run in demo mode
+docker run --env-file .env -e DEMO_MODE=true -p 5001:5001 superset-devin-automation
+```
+
+Demo mode simulates the workflow without making real Devin API calls, useful for testing the webhook logic without API costs.
+
 **Manual Mode:**
 ```bash
 # Build the Docker image
